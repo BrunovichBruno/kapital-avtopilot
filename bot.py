@@ -23,7 +23,7 @@ from telegram_history import (
     fetch_telegram_links, merge_history,
 )
 
-print("[bot] === BOT VERSION 1 (финансы) ЗАГРУЖЕНА ===")
+print("[bot] === BOT VERSION 2 (расширенный) ЗАГРУЖЕНА ===")
 
 RSS_FEEDS = [
     "https://www.rbc.ru/rss/finance",
@@ -34,22 +34,30 @@ RSS_FEEDS = [
     "https://www.banki.ru/xml/news.rss",
     "https://www.kommersant.ru/RSS/news.xml",
     "https://1prime.ru/export/rss2/index.xml",
+    "https://frankmedia.ru/rss",
+    "https://thebell.io/rss",
+    "https://rueconomics.ru/rss",
+    "https://www.interfax.ru/rss.asp",
+    "https://iz.ru/xml/rss/all.xml",
+    "https://www.vestifinance.ru/rss",
 ]
 
 KEYWORDS = [
     "инвестиц", "акци", "облигац", "дивиденд", "брокер", "биржа",
-    "рубл", "доллар", "курс", "банк", "карт", "кредит", "вклад",
+    "рубл", "доллар", "евро", "курс", "банк", "карт", "кредит", "вклад",
     "ипотек", "ставк", "ЦБ", "инфляц", "рынок", "фонд", "капитал",
-    "налог", "бюджет", "доход", "финанс", "экономик",
+    "налог", "бюджет", "доход", "финанс", "экономик", "валют",
+    "страхов", "пенси", "криптов", "биткоин", "тариф", "комисси",
 ]
 
 BLOCKED_WORDS = [
     "мошенничеств", "пирамид", "обман", "развод", "схем",
     "убил", "убийств", "погиб", "смерть", "теракт", "наркотик",
     "изнасил", "ограбил", "задержан", "арестован", "тюрьм",
+    "взятк", "коррупц", "отмыван",
 ]
 
-MAX_POSTS_PER_RUN = 3
+MAX_POSTS_PER_RUN = 4
 DRY_RUN = os.getenv("DRY_RUN", "false").lower() == "true"
 MIN_TEXT_LENGTH = 500
 MAX_TEXT_LENGTH = 15000
@@ -87,6 +95,12 @@ POLLS = {
         "options": ["Да, каждый день", "Иногда", "Когда падает", "Нет"]},
     "Личные финансы": {"question": "Ведёте бюджет?",
         "options": ["Да, в приложении", "Да, в таблице", "Пробовал(а)", "Нет"]},
+    "Криптовалюты": {"question": "Отношение к крипте?",
+        "options": ["Инвестирую", "Интересуюсь", "Не доверяю", "Не моё"]},
+    "Налоги": {"question": "Разбираетесь в налогах?",
+        "options": ["Да, сам(а)", "С помощью", "Плохо", "Не платил(а) ещё"]},
+    "Страхование": {"question": "Есть страховка?",
+        "options": ["ОСАГО/КАСКО", "ДМС", "Ипотечная", "Нет"]},
     "_default": {"question": "Что думаете?",
         "options": ["Полезно! 🔥", "Спорно", "Не моё", "Интересно"]},
 }
@@ -147,6 +161,7 @@ def build_post_text(rewritten, telegraph_url):
     icons = {
         "Банки и карты": "🏦", "Инвестиции": "📈",
         "Экономика": "📊", "Личные финансы": "💰",
+        "Криптовалюты": "🪙", "Налоги": "🧾", "Страхование": "🛡",
     }
     icon = icons.get(rubric, "💼")
     parts = []
@@ -249,6 +264,7 @@ def publish_wiki_article(posted, tg_history):
 def main():
     print("[bot] Запуск. DRY_RUN=" + str(DRY_RUN))
     print("[bot] Модель: " + str(GEMINI_MODEL))
+    print("[bot] Источников RSS: " + str(len(RSS_FEEDS)))
 
     posted = load_posted()
     print("[bot] Записей в posted: " + str(len(posted)))
