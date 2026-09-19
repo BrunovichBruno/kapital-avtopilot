@@ -23,9 +23,9 @@ from telegram_history import (
     fetch_telegram_links, merge_history,
 )
 
-print("[bot] === BOT VERSION 3 (финансы, чистые источники) ЗАГРУЖЕНА ===")
+print("[bot] === BOT VERSION 4 (без 1Prime) ЗАГРУЖЕНА ===")
 
-# ТОЛЬКО финансовые источники (без общих лент типа ТАСС, Коммерсант)
+# Финансовые источники (1Prime убран из-за проблем с извлечением текста)
 RSS_FEEDS = [
     "https://www.rbc.ru/rss/finance",
     "https://www.rbc.ru/rss/economics",
@@ -33,7 +33,6 @@ RSS_FEEDS = [
     "https://www.vedomosti.ru/rss/economics",
     "https://www.forbes.ru/rss",
     "https://www.banki.ru/xml/news.rss",
-    "https://1prime.ru/export/rss2/index.xml",
     "https://frankmedia.ru/rss",
     "https://thebell.io/rss",
     "https://rueconomics.ru/rss",
@@ -62,7 +61,7 @@ BLOCKED_WORDS = [
     "мобилизац", "минобороны", "генштаб", "нато",
     # Шоу-бизнес
     "долин", "артист", "певиц", "актер", "звезд", "селебрит",
-    "скандал", "развод с", "измен",
+    "скандал",
 ]
 
 MAX_POSTS_PER_RUN = 4
@@ -304,6 +303,8 @@ def main():
         except Exception:
             continue
 
+        print("[rss] " + feed_url + " — записей: " + str(len(feed.entries)))
+
         for entry in feed.entries:
             if published >= MAX_POSTS_PER_RUN:
                 break
@@ -329,7 +330,15 @@ def main():
 
             print("[process] " + link)
             full_text = extract_full_text(link)
-            if not full_text or not (MIN_TEXT_LENGTH <= len(full_text) <= MAX_TEXT_LENGTH):
+            if not full_text:
+                print("[skip] Не удалось извлечь текст: " + link[:80])
+                continue
+            text_len = len(full_text)
+            if text_len < MIN_TEXT_LENGTH:
+                print("[skip] Текст короткий (" + str(text_len) + "): " + link[:80])
+                continue
+            if text_len > MAX_TEXT_LENGTH:
+                print("[skip] Текст длинный (" + str(text_len) + "): " + link[:80])
                 continue
             if has_blocked_words(full_text):
                 print("[skip] Заблокировано в тексте: " + title[:80])
