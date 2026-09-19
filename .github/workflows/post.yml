@@ -50,5 +50,5 @@ jobs:
           else
             git commit -m "Update state [skip ci]"
             git pull --rebase origin main || true
-            git push
+            git push || echo "Nothing to push"
           fi
