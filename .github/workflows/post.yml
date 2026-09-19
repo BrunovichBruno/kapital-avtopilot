@@ -1,0 +1,54 @@
+name: Автопостинг финансового канала
+
+on:
+  schedule:
+    # Каждые 2 часа с 5:00 до 23:00 UTC (08:00–02:00 МСК), все дни
+    - cron: '0 5-23/2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: kapital-poster
+  cancel-in-progress: false
+
+jobs:
+  post:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Установка зависимостей
+        run: pip install -r requirements.txt
+
+      - name: Запуск бота
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHANNEL_ID: ${{ secrets.TELEGRAM_CHANNEL_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TELEGRAPH_TOKEN: ${{ secrets.TELEGRAPH_TOKEN }}
+          GEMINI_MODEL: gemini-3.6-flash
+          DRY_RUN: "false"
+        run: python bot.py
+
+      - name: Сохранить состояние
+        if: always()
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          touch posted.json poll_state.json telegram_history.json
+          git add posted.json poll_state.json telegram_history.json
+          if git diff --cached --quiet; then
+            echo "Нечего коммитить"
+          else
+            git commit -m "Update state [skip ci]"
+            git pull --rebase origin main || true
+            git push
+          fi
