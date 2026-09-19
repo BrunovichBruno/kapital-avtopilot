@@ -23,25 +23,23 @@ from telegram_history import (
     fetch_telegram_links, merge_history,
 )
 
-print("[bot] === BOT VERSION 2 (расширенный) ЗАГРУЖЕНА ===")
+print("[bot] === BOT VERSION 3 (финансы, чистые источники) ЗАГРУЖЕНА ===")
 
+# ТОЛЬКО финансовые источники (без общих лент типа ТАСС, Коммерсант)
 RSS_FEEDS = [
     "https://www.rbc.ru/rss/finance",
     "https://www.rbc.ru/rss/economics",
-    "https://tass.ru/rss/v2.xml",
-    "https://www.vedomosti.ru/rss/news",
+    "https://www.vedomosti.ru/rss/finance",
+    "https://www.vedomosti.ru/rss/economics",
     "https://www.forbes.ru/rss",
     "https://www.banki.ru/xml/news.rss",
-    "https://www.kommersant.ru/RSS/news.xml",
     "https://1prime.ru/export/rss2/index.xml",
     "https://frankmedia.ru/rss",
     "https://thebell.io/rss",
     "https://rueconomics.ru/rss",
-    "https://www.interfax.ru/rss.asp",
-    "https://iz.ru/xml/rss/all.xml",
-    "https://www.vestifinance.ru/rss",
 ]
 
+# Ключевые слова — статья должна содержать хотя бы одно
 KEYWORDS = [
     "инвестиц", "акци", "облигац", "дивиденд", "брокер", "биржа",
     "рубл", "доллар", "евро", "курс", "банк", "карт", "кредит", "вклад",
@@ -50,11 +48,21 @@ KEYWORDS = [
     "страхов", "пенси", "криптов", "биткоин", "тариф", "комисси",
 ]
 
+# Заблокированные слова — если есть, статья не публикуется
 BLOCKED_WORDS = [
+    # Финансовый мусор
     "мошенничеств", "пирамид", "обман", "развод", "схем",
+    # Криминал
     "убил", "убийств", "погиб", "смерть", "теракт", "наркотик",
     "изнасил", "ограбил", "задержан", "арестован", "тюрьм",
     "взятк", "коррупц", "отмыван",
+    # Политика и война
+    "путин", "кремл", "спецоперац", "военн", "арми", "оружи",
+    "беспилотник", "дрон", "аэс", "конфликт", "обстрел",
+    "мобилизац", "минобороны", "генштаб", "нато",
+    # Шоу-бизнес
+    "долин", "артист", "певиц", "актер", "звезд", "селебрит",
+    "скандал", "развод с", "измен",
 ]
 
 MAX_POSTS_PER_RUN = 4
@@ -324,6 +332,7 @@ def main():
             if not full_text or not (MIN_TEXT_LENGTH <= len(full_text) <= MAX_TEXT_LENGTH):
                 continue
             if has_blocked_words(full_text):
+                print("[skip] Заблокировано в тексте: " + title[:80])
                 continue
 
             rewritten = rewrite_article(title, full_text, GEMINI_API_KEY, GEMINI_MODEL, summary=summary)
