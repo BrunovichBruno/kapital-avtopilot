@@ -23,22 +23,21 @@ from telegram_history import (
     fetch_telegram_links, merge_history,
 )
 
-print("[bot] === BOT VERSION 4 (без 1Prime) ЗАГРУЖЕНА ===")
+print("[bot] === BOT VERSION 9 (9 источников) ЗАГРУЖЕНА ===")
 
-# Финансовые источники (1Prime убран из-за проблем с извлечением текста)
+# 9 финансовых источников
 RSS_FEEDS = [
-    "https://www.rbc.ru/rss/finance",
-    "https://www.rbc.ru/rss/economics",
-    "https://www.vedomosti.ru/rss/finance",
-    "https://www.vedomosti.ru/rss/economics",
-    "https://www.forbes.ru/rss",
+    "https://www.vedomosti.ru/rss/news",
+    "https://www.forbes.ru/newrss.xml",
     "https://www.banki.ru/xml/news.rss",
-    "https://frankmedia.ru/rss",
-    "https://thebell.io/rss",
-    "https://rueconomics.ru/rss",
+    "https://frankmedia.ru/feed/",
+    "https://thebell.io/feed/",
+    "https://tass.ru/rss/v2.xml",
+    "https://www.interfax.ru/rss.asp",
+    "http://www.cbr.ru/rss/RssNews",
+    "https://rssexport.rbc.ru/rbcnews/news/30/full.rss",
 ]
 
-# Ключевые слова — статья должна содержать хотя бы одно
 KEYWORDS = [
     "инвестиц", "акци", "облигац", "дивиденд", "брокер", "биржа",
     "рубл", "доллар", "евро", "курс", "банк", "карт", "кредит", "вклад",
@@ -47,19 +46,14 @@ KEYWORDS = [
     "страхов", "пенси", "криптов", "биткоин", "тариф", "комисси",
 ]
 
-# Заблокированные слова — если есть, статья не публикуется
 BLOCKED_WORDS = [
-    # Финансовый мусор
     "мошенничеств", "пирамид", "обман", "развод", "схем",
-    # Криминал
     "убил", "убийств", "погиб", "смерть", "теракт", "наркотик",
     "изнасил", "ограбил", "задержан", "арестован", "тюрьм",
     "взятк", "коррупц", "отмыван",
-    # Политика и война
     "путин", "кремл", "спецоперац", "военн", "арми", "оружи",
     "беспилотник", "дрон", "аэс", "конфликт", "обстрел",
     "мобилизац", "минобороны", "генштаб", "нато",
-    # Шоу-бизнес
     "долин", "артист", "певиц", "актер", "звезд", "селебрит",
     "скандал",
 ]
