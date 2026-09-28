@@ -23,19 +23,18 @@ from telegram_history import (
     fetch_telegram_links, merge_history,
 )
 
-print("[bot] === BOT VERSION 9 (9 источников) ЗАГРУЖЕНА ===")
+print("[bot] === BOT VERSION 10 (финансы, 8 источников) ЗАГРУЖЕНА ===")
 
-# 9 финансовых источников
+# 8 рабочих источников (Forbes и Банки.ру убраны — отдают HTML)
 RSS_FEEDS = [
     "https://www.vedomosti.ru/rss/news",
-    "https://www.forbes.ru/newrss.xml",
-    "https://www.banki.ru/xml/news.rss",
     "https://frankmedia.ru/feed/",
     "https://thebell.io/feed/",
+    "https://1prime.ru/export/rss2/index.xml",
+    "https://rssexport.rbc.ru/rbcnews/news/30/full.rss",
+    "http://www.cbr.ru/rss/RssNews",
     "https://tass.ru/rss/v2.xml",
     "https://www.interfax.ru/rss.asp",
-    "http://www.cbr.ru/rss/RssNews",
-    "https://rssexport.rbc.ru/rbcnews/news/30/full.rss",
 ]
 
 KEYWORDS = [
@@ -55,15 +54,15 @@ BLOCKED_WORDS = [
     "беспилотник", "дрон", "аэс", "конфликт", "обстрел",
     "мобилизац", "минобороны", "генштаб", "нато",
     "долин", "артист", "певиц", "актер", "звезд", "селебрит",
-    "скандал",
+    "скандал", "пожар", "чс", "эвакуац",
 ]
 
 MAX_POSTS_PER_RUN = 4
 DRY_RUN = os.getenv("DRY_RUN", "false").lower() == "true"
 MIN_TEXT_LENGTH = 500
 MAX_TEXT_LENGTH = 15000
-DELAY_MIN = 600
-DELAY_MAX = 1200
+DELAY_MIN = 180
+DELAY_MAX = 300
 WIKI_PROBABILITY = 0.3
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
