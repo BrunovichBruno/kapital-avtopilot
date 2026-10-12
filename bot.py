@@ -9,7 +9,7 @@ import requests
 from google import genai
 
 from extractor import extract_full_text, extract_image
-from rewriter import rewrite_article
+from rewriter import rewrite_article, detect_rubric
 from telegraph_publisher import publish_to_telegraph
 from poll_manager import should_send_poll, mark_poll_sent, load_poll_state
 from wikipedia_source import get_random_wiki_article
@@ -23,9 +23,8 @@ from telegram_history import (
     fetch_telegram_links, merge_history,
 )
 
-print("[bot] === BOT VERSION 10 (финансы, 8 источников) ЗАГРУЖЕНА ===")
+print("[bot] === BOT VERSION 12 (финансы, синтез) ЗАГРУЖЕНА ===")
 
-# 8 рабочих источников (Forbes и Банки.ру убраны — отдают HTML)
 RSS_FEEDS = [
     "https://www.vedomosti.ru/rss/news",
     "https://frankmedia.ru/feed/",
@@ -63,7 +62,10 @@ MIN_TEXT_LENGTH = 500
 MAX_TEXT_LENGTH = 15000
 DELAY_MIN = 180
 DELAY_MAX = 300
-WIKI_PROBABILITY = 0.3
+
+# Вероятности режимов
+WIKI_PROBABILITY = 0.25
+SYNTH_PROBABILITY = 0.35
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 TELEGRAM_CHANNEL_ID = os.getenv("TELEGRAM_CHANNEL_ID")
@@ -101,6 +103,10 @@ POLLS = {
         "options": ["Да, сам(а)", "С помощью", "Плохо", "Не платил(а) ещё"]},
     "Страхование": {"question": "Есть страховка?",
         "options": ["ОСАГО/КАСКО", "ДМС", "Ипотечная", "Нет"]},
+    "Бюджет": {"question": "Планируете бюджет на месяц?",
+        "options": ["Да, всегда", "Иногда", "Нет", "Пробовал(а)"]},
+    "Накопления": {"question": "Есть финансовая подушка?",
+        "options": ["Да, 3+ месяца", "Да, меньше", "Нет, но хочу", "Нет"]},
     "_default": {"question": "Что думаете?",
         "options": ["Полезно! 🔥", "Спорно", "Не моё", "Интересно"]},
 }
@@ -162,6 +168,7 @@ def build_post_text(rewritten, telegraph_url):
         "Банки и карты": "🏦", "Инвестиции": "📈",
         "Экономика": "📊", "Личные финансы": "💰",
         "Криптовалюты": "🪙", "Налоги": "🧾", "Страхование": "🛡",
+        "Бюджет": "📋", "Накопления": "🏆", "Кредиты": "💳",
     }
     icon = icons.get(rubric, "💼")
     parts = []
@@ -261,6 +268,112 @@ def publish_wiki_article(posted, tg_history):
     return True
 
 
+def publish_synthesis_article(posted, tg_history):
+    """Синтез статьи из нескольких источников."""
+    print("[synth] Запуск синтеза...")
+
+    all_articles = []
+    for feed_url in RSS_FEEDS:
+        try:
+            feed = feedparser.parse(feed_url)
+        except Exception:
+            continue
+        for entry in feed.entries[:20]:
+            link = entry.get("link", "")
+            title = entry.get("title", "")
+            summary = entry.get("summary", "")
+            if not link or not title:
+                continue
+            if is_posted(link, posted):
+                continue
+            if check_against_telegram(link, tg_history):
+                continue
+            if not matches_keywords(title + " " + summary):
+                continue
+            if has_blocked_words(title + " " + summary):
+                continue
+            all_articles.append({
+                "title": title,
+                "link": link,
+                "summary": summary,
+            })
+
+    print("[synth] Собрано статей: " + str(len(all_articles)))
+
+    if len(all_articles) < 3:
+        print("[synth] Мало статей для синтеза")
+        return False
+
+    from topic_grouper import group_by_topic
+    groups = group_by_topic(all_articles, min_group_size=3)
+
+    if not groups:
+        print("[synth] Групп не найдено")
+        return False
+
+    group = groups[0]
+    print("[synth] Тема: " + group[0]["title"])
+
+    articles_data = []
+    for a in group[:5]:
+        full_text = extract_full_text(a["link"])
+        if full_text and len(full_text) > 300:
+            articles_data.append({
+                "title": a["title"],
+                "text": full_text,
+            })
+
+    if len(articles_data) < 2:
+        print("[synth] Мало статей с текстом")
+        return False
+
+    from synthesizer import synthesize_article
+    result = synthesize_article(articles_data, GEMINI_API_KEY, GEMINI_MODEL)
+    if not result:
+        return False
+
+    summary = " ".join(a["summary"] for a in group[:3])
+    rubric = detect_rubric(result["title"], summary, result["text"])
+    result["rubric_name"] = rubric["name"]
+    result["hashtags"] = rubric["hashtags"]
+
+    source_url = group[0]["link"]
+    telegraph_url = publish_to_telegraph(
+        title=result["title"], text=result["text"], source_url=source_url)
+
+    image_url = extract_image(group[0]["link"])
+    image_bytes, filename = None, None
+    if image_url:
+        image_bytes, filename = download_image(image_url)
+
+    caption = build_post_text(result, telegraph_url)
+    if DRY_RUN:
+        print("[DRY_RUN][synth] " + caption[:200])
+    else:
+        sent = False
+        if image_bytes:
+            if len(caption) > 1024:
+                sent = send_photo_bytes(image_bytes, filename, caption[:1000] + "…")
+                if sent and telegraph_url:
+                    send_message("👉 <a href='" + telegraph_url + "'>Читать полностью</a>")
+            else:
+                sent = send_photo_bytes(image_bytes, filename, caption)
+        if not sent:
+            send_message(caption)
+
+        if should_send_poll():
+            poll = get_poll_for_rubric(result.get("rubric_name", ""))
+            time.sleep(3)
+            send_poll(poll["question"], poll["options"])
+            mark_poll_sent()
+
+    for a in group:
+        mark_posted(a["link"], posted)
+
+    print("[synth] Опубликовано: " + result["title"])
+    return True
+
+
 def main():
     print("[bot] Запуск. DRY_RUN=" + str(DRY_RUN))
     print("[bot] Модель: " + str(GEMINI_MODEL))
@@ -277,13 +390,23 @@ def main():
 
     posted = cleanup_old(posted)
 
-    if random.random() < WIKI_PROBABILITY:
+    r = random.random()
+
+    if r < WIKI_PROBABILITY:
         print("[bot] Режим: WIKI")
         if publish_wiki_article(posted, tg_history):
             save_posted(posted)
             print("[done] Опубликовано: 1 (wiki)")
             return
-        print("[bot] WIKI не сработала, иду в RSS")
+        print("[bot] WIKI не сработала")
+
+    elif r < WIKI_PROBABILITY + SYNTH_PROBABILITY:
+        print("[bot] Режим: SYNTHESIS")
+        if publish_synthesis_article(posted, tg_history):
+            save_posted(posted)
+            print("[done] Опубликовано: 1 (synthesis)")
+            return
+        print("[bot] SYNTHESIS не сработала, иду в RSS")
 
     print("[bot] Режим: RSS")
     published = 0
